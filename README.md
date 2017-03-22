@@ -16,7 +16,7 @@
 
 For examples of the datepicker in action, go to http://airbnb.io/react-dates.
 
-OR
+OR 
 
 To run that demo on your own computer:
 * Clone this repository
@@ -24,7 +24,7 @@ To run that demo on your own computer:
 * `npm run storybook`
 * Visit http://localhost:9001/
 
-## Getting Started
+## Getting Started 
 ### Install dependencies
 Ensure packages are installed with correct version numbers by running:
   ```sh
@@ -69,6 +69,7 @@ only visible if `focusedInput` is defined) with the `focusedInput` and `onFocusC
 
 Here is the minimum *REQUIRED* setup you need to get the `DateRangePicker` working:
 ```jsx
+
 <DateRangePicker
   startDate={this.state.startDate} // momentPropTypes.momentObj or null,
   endDate={this.state.endDate} // momentPropTypes.momentObj or null,
