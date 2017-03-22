@@ -1,4 +1,5 @@
-const DateRangePicker = require('./lib/components/DateRangePicker').default;
+import DateRangePicker from './lib/components/DateRangePicker';
+
 const DateRangePickerInput = require('./lib/components/DateRangePickerInput').default;
 const DateRangePickerInputController = require('./lib/components/DateRangePickerInputController').default;
 const SingleDatePicker = require('./lib/components/SingleDatePicker').default;
