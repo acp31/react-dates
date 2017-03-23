@@ -21,6 +21,7 @@ var toISODateString = require('./lib/utils/toISODateString').default;
 var toLocalizedDateString = require('./lib/utils/toLocalizedDateString').default;
 var toMomentObject = require('./lib/utils/toMomentObject').default;
 
+// Mods
 
 module.exports = {
   DateRangePicker: DateRangePicker,
