@@ -12,3 +12,4 @@ export const VERTICAL_SCROLLABLE = 'verticalScrollable';
 export const ANCHOR_LEFT = 'left';
 export const ANCHOR_RIGHT = 'right';
 
+// constants
