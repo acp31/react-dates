@@ -12,7 +12,8 @@ import isInclusivelyAfterDay from '../../src/utils/isInclusivelyAfterDay';
 
 import { START_DATE, END_DATE } from '../../constants';
 
-const today = moment().startOf('day');
+// Set to noon to mimic how days in the picker are configured internally
+const today = moment().startOf('day').hours(12);
 
 describe('DayPickerRangeController', () => {
   describe('#render()', () => {
@@ -26,15 +27,25 @@ describe('DayPickerRangeController', () => {
     describe('day argument is a blocked day', () => {
       it('props.onFocusChange is not called', () => {
         const onFocusChangeStub = sinon.stub();
-        const wrapper = shallow(<DayPickerRangeController onFocusChange={onFocusChangeStub} />);
-        wrapper.instance().onDayClick(today, ['blocked']);
+        const wrapper = shallow(
+          <DayPickerRangeController
+            onFocusChange={onFocusChangeStub}
+            isDayBlocked={() => true}
+          />,
+        );
+        wrapper.instance().onDayClick(today);
         expect(onFocusChangeStub.callCount).to.equal(0);
       });
 
       it('props.onDatesChange is not called', () => {
         const onDatesChangeStub = sinon.stub();
-        const wrapper = shallow(<DayPickerRangeController onDatesChange={onDatesChangeStub} />);
-        wrapper.instance().onDayClick(today, ['blocked']);
+        const wrapper = shallow(
+          <DayPickerRangeController
+            onDatesChange={onDatesChangeStub}
+            isDayBlocked={() => true}
+          />,
+        );
+        wrapper.instance().onDayClick(today);
         expect(onDatesChangeStub.callCount).to.equal(0);
       });
     });
@@ -44,18 +55,24 @@ describe('DayPickerRangeController', () => {
         it('is called once', () => {
           const onFocusChangeStub = sinon.stub();
           const wrapper = shallow(
-            <DayPickerRangeController focusedInput={START_DATE} onFocusChange={onFocusChangeStub} />
+            <DayPickerRangeController
+              focusedInput={START_DATE}
+              onFocusChange={onFocusChangeStub}
+            />,
           );
-          wrapper.instance().onDayClick(today, []);
+          wrapper.instance().onDayClick(today);
           expect(onFocusChangeStub.callCount).to.equal(1);
         });
 
         it('is called with END_DATE', () => {
           const onFocusChangeStub = sinon.stub();
           const wrapper = shallow(
-            <DayPickerRangeController focusedInput={START_DATE} onFocusChange={onFocusChangeStub} />
+            <DayPickerRangeController
+              focusedInput={START_DATE}
+              onFocusChange={onFocusChangeStub}
+            />,
           );
-          wrapper.instance().onDayClick(today, []);
+          wrapper.instance().onDayClick(today);
           expect(onFocusChangeStub.getCall(0).args[0]).to.equal(END_DATE);
         });
       });
@@ -63,9 +80,9 @@ describe('DayPickerRangeController', () => {
       it('calls props.onDatesChange', () => {
         const onDatesChangeStub = sinon.stub();
         const wrapper = shallow(
-          <DayPickerRangeController focusedInput={START_DATE} onDatesChange={onDatesChangeStub} />
+          <DayPickerRangeController focusedInput={START_DATE} onDatesChange={onDatesChangeStub} />,
         );
-        wrapper.instance().onDayClick(today, []);
+        wrapper.instance().onDayClick(today);
         expect(onDatesChangeStub.callCount).to.equal(1);
       });
 
@@ -77,10 +94,10 @@ describe('DayPickerRangeController', () => {
               focusedInput={START_DATE}
               endDate={today}
               onDatesChange={onDatesChangeStub}
-            />
+            />,
           );
           const tomorrow = moment(today).add(1, 'days');
-          wrapper.instance().onDayClick(tomorrow, []);
+          wrapper.instance().onDayClick(tomorrow);
           expect(onDatesChangeStub.calledWith({
             startDate: tomorrow,
             endDate: null,
@@ -97,9 +114,9 @@ describe('DayPickerRangeController', () => {
               focusedInput={START_DATE}
               endDate={tomorrow}
               onDatesChange={onDatesChangeStub}
-            />
+            />,
           );
-          wrapper.instance().onDayClick(today, []);
+          wrapper.instance().onDayClick(today);
           expect(onDatesChangeStub.calledWith({
             startDate: today,
             endDate: tomorrow,
@@ -115,9 +132,9 @@ describe('DayPickerRangeController', () => {
               focusedInput={START_DATE}
               endDate={null}
               onDatesChange={onDatesChangeStub}
-            />
+            />,
           );
-          wrapper.instance().onDayClick(today, []);
+          wrapper.instance().onDayClick(today);
           expect(onDatesChangeStub.calledWith({
             startDate: today,
             endDate: null,
@@ -135,9 +152,9 @@ describe('DayPickerRangeController', () => {
               focusedInput={END_DATE}
               startDate={moment(today).add(1, 'days')}
               onDatesChange={onDatesChangeStub}
-            />
+            />,
           );
-          wrapper.instance().onDayClick(today, []);
+          wrapper.instance().onDayClick(today);
           const args = onDatesChangeStub.getCall(0).args[0];
           expect(args.startDate).to.equal(today);
           expect(args.endDate).to.equal(null);
@@ -152,13 +169,13 @@ describe('DayPickerRangeController', () => {
               <DayPickerRangeController
                 focusedInput={END_DATE}
                 onDatesChange={onDatesChangeStub}
-              />
+              />,
             );
-            wrapper.instance().onDayClick(today, []);
+            wrapper.instance().onDayClick(today);
             const args = onDatesChangeStub.getCall(0).args[0];
             expect(args.startDate).to.equal(wrapper.props().startDate);
             expect(args.endDate).to.equal(today);
-          }
+          },
         );
 
         describe('props.onFocusChange', () => {
@@ -169,9 +186,9 @@ describe('DayPickerRangeController', () => {
                 <DayPickerRangeController
                   focusedInput={END_DATE}
                   onFocusChange={onFocusChangeStub}
-                />
+                />,
               );
-              wrapper.instance().onDayClick(today, []);
+              wrapper.instance().onDayClick(today);
               expect(onFocusChangeStub.callCount).to.equal(1);
             });
 
@@ -181,9 +198,9 @@ describe('DayPickerRangeController', () => {
                 <DayPickerRangeController
                   focusedInput={END_DATE}
                   onFocusChange={onFocusChangeStub}
-                />
+                />,
               );
-              wrapper.instance().onDayClick(today, []);
+              wrapper.instance().onDayClick(today);
               expect(onFocusChangeStub.getCall(0).args[0]).to.equal(START_DATE);
             });
           });
@@ -196,9 +213,9 @@ describe('DayPickerRangeController', () => {
                   focusedInput={END_DATE}
                   startDate={today}
                   onFocusChange={onFocusChangeStub}
-                />
+                />,
               );
-              wrapper.instance().onDayClick(moment(today).add(1, 'days'), []);
+              wrapper.instance().onDayClick(moment(today).add(1, 'days'));
               expect(onFocusChangeStub.callCount).to.equal(1);
             });
 
@@ -209,9 +226,9 @@ describe('DayPickerRangeController', () => {
                   focusedInput={END_DATE}
                   startDate={today}
                   onFocusChange={onFocusChangeStub}
-                />
+                />,
               );
-              wrapper.instance().onDayClick(moment(today).add(1, 'days'), []);
+              wrapper.instance().onDayClick(moment(today).add(1, 'days'));
               expect(onFocusChangeStub.getCall(0).args[0]).to.equal(null);
             });
           });
@@ -228,9 +245,9 @@ describe('DayPickerRangeController', () => {
                 minimumNights={0}
                 onDatesChange={onDatesChangeStub}
                 startDate={today}
-              />
+              />,
             );
-            wrapper.instance().onDayClick(today, []);
+            wrapper.instance().onDayClick(today);
             const args = onDatesChangeStub.getCall(0).args[0];
             expect(args.startDate).to.equal(today);
             expect(args.endDate).to.equal(today);
@@ -271,7 +288,7 @@ describe('DayPickerRangeController', () => {
                 focusedInput={END_DATE}
                 startDate={startDate}
                 minimumNights={MIN_NIGHTS}
-              />
+              />,
             );
             expect(wrapper.instance().doesNotMeetMinimumNights(testDate)).to.equal(true);
           });
@@ -283,7 +300,20 @@ describe('DayPickerRangeController', () => {
                 focusedInput={END_DATE}
                 startDate={startDate}
                 minimumNights={MIN_NIGHTS}
-              />
+              />,
+            );
+            expect(wrapper.instance().doesNotMeetMinimumNights(testDate)).to.equal(false);
+          });
+
+          it('handles time differences of less than 1 full day properly', () => {
+            const partialDate = moment(startDate).add(5, 'minutes');
+            const testDate = moment(startDate).add(MIN_NIGHTS, 'days');
+            const wrapper = shallow(
+              <DayPickerRangeController
+                focusedInput={END_DATE}
+                startDate={partialDate}
+                minimumNights={MIN_NIGHTS}
+              />,
             );
             expect(wrapper.instance().doesNotMeetMinimumNights(testDate)).to.equal(false);
           });
@@ -297,7 +327,7 @@ describe('DayPickerRangeController', () => {
                 focusedInput={START_DATE}
                 startDate={startDate}
                 minimumNights={MIN_NIGHTS}
-              />
+              />,
             );
             expect(wrapper.instance().doesNotMeetMinimumNights(testDate)).to.equal(false);
           });
@@ -315,7 +345,7 @@ describe('DayPickerRangeController', () => {
                 startDate={null}
                 minimumNights={MIN_NIGHTS}
                 isOutsideRange={isOutsideRange}
-              />
+              />,
             );
             expect(wrapper.instance().doesNotMeetMinimumNights(testDate)).to.equal(true);
           });
@@ -329,7 +359,7 @@ describe('DayPickerRangeController', () => {
                 startDate={null}
                 minimumNights={MIN_NIGHTS}
                 isOutsideRange={isOutsideRange}
-              />
+              />,
             );
             expect(wrapper.instance().doesNotMeetMinimumNights(testDate)).to.equal(false);
           });
@@ -343,7 +373,7 @@ describe('DayPickerRangeController', () => {
                 focusedInput={START_DATE}
                 startDate={null}
                 minimumNights={MIN_NIGHTS}
-              />
+              />,
             );
             expect(wrapper.instance().doesNotMeetMinimumNights(testDate)).to.equal(false);
           });
@@ -376,7 +406,7 @@ describe('DayPickerRangeController', () => {
           <DayPickerRangeController
             startDate={today}
             endDate={moment(today).add(3, 'days')}
-          />
+          />,
         );
         wrapper.setState({
           hoverDate: today,
@@ -491,7 +521,7 @@ describe('DayPickerRangeController', () => {
             <DayPickerRangeController
               startDate={null}
               endDate={moment(today).add(5, 'days')}
-            />
+            />,
           );
           wrapper.setState({
             hoverDate: today,
@@ -505,7 +535,7 @@ describe('DayPickerRangeController', () => {
             <DayPickerRangeController
               startDate={null}
               endDate={moment(today).add(5, 'days')}
-            />
+            />,
           );
           wrapper.setState({
             hoverDate: today,
@@ -518,7 +548,7 @@ describe('DayPickerRangeController', () => {
             <DayPickerRangeController
               startDate={null}
               endDate={moment(today).add(5, 'days')}
-            />
+            />,
           );
           wrapper.setState({
             hoverDate: today,
@@ -533,7 +563,7 @@ describe('DayPickerRangeController', () => {
             <DayPickerRangeController
               startDate={null}
               endDate={endDate}
-            />
+            />,
           );
           wrapper.setState({
             hoverDate: today,
@@ -551,7 +581,7 @@ describe('DayPickerRangeController', () => {
           <DayPickerRangeController
             startDate={today}
             endDate={endDate}
-          />
+          />,
         );
         const testDate = moment(endDate).subtract(1, 'days');
         expect(wrapper.instance().isInSelectedSpan(testDate)).to.equal(true);
@@ -563,7 +593,7 @@ describe('DayPickerRangeController', () => {
           <DayPickerRangeController
             startDate={today}
             endDate={endDate}
-          />
+          />,
         );
         const testDate = moment(today).subtract(1, 'days');
         expect(wrapper.instance().isInSelectedSpan(testDate)).to.equal(false);
@@ -575,7 +605,7 @@ describe('DayPickerRangeController', () => {
           <DayPickerRangeController
             startDate={today}
             endDate={endDate}
-          />
+          />,
         );
         const testDate = moment(endDate).add(1, 'days');
         expect(wrapper.instance().isInSelectedSpan(testDate)).to.equal(false);
@@ -586,7 +616,7 @@ describe('DayPickerRangeController', () => {
           <DayPickerRangeController
             startDate={null}
             endDate={moment(today).add(5, 'days')}
-          />
+          />,
         );
         expect(wrapper.instance().isInSelectedSpan(today)).to.equal(false);
       });
@@ -596,7 +626,7 @@ describe('DayPickerRangeController', () => {
           <DayPickerRangeController
             startDate={today}
             endDate={null}
-          />
+          />,
         );
         const testDate = moment(today).add(1, 'days');
         expect(wrapper.instance().isInSelectedSpan(testDate)).to.equal(false);
@@ -618,7 +648,7 @@ describe('DayPickerRangeController', () => {
         const wrapper = shallow(
           <DayPickerRangeController
             endDate={moment(today).add(1, 'days')}
-          />
+          />,
         );
         expect(wrapper.instance().isLastInRange(today)).to.equal(true);
       });
@@ -628,7 +658,7 @@ describe('DayPickerRangeController', () => {
         const wrapper = shallow(
           <DayPickerRangeController
             endDate={moment(today).add(1, 'days')}
-          />
+          />,
         );
         expect(wrapper.instance().isLastInRange(today)).to.equal(false);
       });
@@ -638,7 +668,7 @@ describe('DayPickerRangeController', () => {
         const wrapper = shallow(
           <DayPickerRangeController
             endDate={moment(today).add(2, 'days')}
-          />
+          />,
         );
         expect(wrapper.instance().isLastInRange(today)).to.equal(false);
       });
@@ -681,7 +711,7 @@ describe('DayPickerRangeController', () => {
           <DayPickerRangeController
             isDayBlocked={isDayBlockedStub}
             isOutsideRange={isOutsideRangeStub}
-          />
+          />,
         );
         expect(wrapper.instance().isBlocked(today)).to.equal(true);
       });
@@ -695,7 +725,7 @@ describe('DayPickerRangeController', () => {
           <DayPickerRangeController
             isDayBlocked={isDayBlockedStub}
             isOutsideRange={isOutsideRangeStub}
-          />
+          />,
         );
         expect(wrapper.instance().isBlocked(today)).to.equal(true);
       });
@@ -709,7 +739,7 @@ describe('DayPickerRangeController', () => {
           <DayPickerRangeController
             isDayBlocked={isDayBlockedStub}
             isOutsideRange={isOutsideRangeStub}
-          />
+          />,
         );
         expect(wrapper.instance().isBlocked(today)).to.equal(true);
       });
@@ -723,7 +753,7 @@ describe('DayPickerRangeController', () => {
           <DayPickerRangeController
             isDayBlocked={isDayBlockedStub}
             isOutsideRange={isOutsideRangeStub}
-          />
+          />,
         );
         expect(wrapper.instance().isBlocked(today)).to.equal(false);
       });

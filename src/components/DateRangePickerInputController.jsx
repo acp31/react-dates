@@ -2,18 +2,23 @@ import React, { PropTypes } from 'react';
 import moment from 'moment';
 
 import momentPropTypes from 'react-moment-proptypes';
+import { forbidExtraProps } from 'airbnb-prop-types';
+
+import { DateRangePickerInputPhrases } from '../defaultPhrases';
+import getPhrasePropTypes from '../utils/getPhrasePropTypes';
 
 import DateRangePickerInput from './DateRangePickerInput';
 
 import toMomentObject from '../utils/toMomentObject';
 import toLocalizedDateString from '../utils/toLocalizedDateString';
+import toISODateString from '../utils/toISODateString';
 
 import isInclusivelyAfterDay from '../utils/isInclusivelyAfterDay';
 import isInclusivelyBeforeDay from '../utils/isInclusivelyBeforeDay';
 
 import { START_DATE, END_DATE } from '../../constants';
 
-const propTypes = {
+const propTypes = forbidExtraProps({
   startDate: momentPropTypes.momentObj,
   startDateId: PropTypes.string,
   startDatePlaceholderText: PropTypes.string,
@@ -24,8 +29,10 @@ const propTypes = {
   endDatePlaceholderText: PropTypes.string,
   isEndDateFocused: PropTypes.bool,
 
+  screenReaderMessage: PropTypes.string,
   showClearDates: PropTypes.bool,
   showCaret: PropTypes.bool,
+  showDefaultInputIcon: PropTypes.bool,
   disabled: PropTypes.bool,
   required: PropTypes.bool,
 
@@ -38,11 +45,13 @@ const propTypes = {
   onFocusChange: PropTypes.func,
   onDatesChange: PropTypes.func,
 
+  customInputIcon: PropTypes.node,
+  customArrowIcon: PropTypes.node,
+  customCloseIcon: PropTypes.node,
+
   // i18n
-  phrases: PropTypes.shape({
-    clearDates: PropTypes.node,
-  }),
-};
+  phrases: PropTypes.shape(getPhrasePropTypes(DateRangePickerInputPhrases)),
+});
 
 const defaultProps = {
   startDate: null,
@@ -55,8 +64,10 @@ const defaultProps = {
   endDatePlaceholderText: 'End Date',
   isEndDateFocused: false,
 
+  screenReaderMessage: '',
   showClearDates: false,
   showCaret: false,
+  showDefaultInputIcon: false,
   disabled: false,
   required: false,
 
@@ -69,10 +80,12 @@ const defaultProps = {
   onFocusChange() {},
   onDatesChange() {},
 
+  customInputIcon: null,
+  customArrowIcon: null,
+  customCloseIcon: null,
+
   // i18n
-  phrases: {
-    clearDates: 'Clear Dates',
-  },
+  phrases: DateRangePickerInputPhrases,
 };
 
 export default class DateRangePickerInputWithHandlers extends React.Component {
@@ -186,29 +199,42 @@ export default class DateRangePickerInputWithHandlers extends React.Component {
       endDateId,
       endDatePlaceholderText,
       isEndDateFocused,
+      screenReaderMessage,
       showClearDates,
       showCaret,
+      showDefaultInputIcon,
+      customInputIcon,
+      customArrowIcon,
+      customCloseIcon,
       disabled,
       required,
       phrases,
     } = this.props;
 
     const startDateString = this.getDateString(startDate);
+    const startDateValue = toISODateString(startDate);
     const endDateString = this.getDateString(endDate);
+    const endDateValue = toISODateString(endDate);
 
     return (
       <DateRangePickerInput
         startDate={startDateString}
+        startDateValue={startDateValue}
         startDateId={startDateId}
         startDatePlaceholderText={startDatePlaceholderText}
         isStartDateFocused={isStartDateFocused}
         endDate={endDateString}
+        endDateValue={endDateValue}
         endDateId={endDateId}
         endDatePlaceholderText={endDatePlaceholderText}
         isEndDateFocused={isEndDateFocused}
         disabled={disabled}
         required={required}
         showCaret={showCaret}
+        showDefaultInputIcon={showDefaultInputIcon}
+        customInputIcon={customInputIcon}
+        customArrowIcon={customArrowIcon}
+        customCloseIcon={customCloseIcon}
         phrases={phrases}
         onStartDateChange={this.onStartDateChange}
         onStartDateFocus={this.onStartDateFocus}
@@ -218,6 +244,7 @@ export default class DateRangePickerInputWithHandlers extends React.Component {
         onEndDateTab={this.onClearFocus}
         showClearDates={showClearDates}
         onClearDates={this.clearDates}
+        screenReaderMessage={screenReaderMessage}
       />
     );
   }

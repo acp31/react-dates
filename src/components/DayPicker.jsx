@@ -1,8 +1,12 @@
 import React, { PropTypes } from 'react';
 import shallowCompare from 'react-addons-shallow-compare';
 import ReactDOM from 'react-dom';
+import { forbidExtraProps } from 'airbnb-prop-types';
 import moment from 'moment';
 import cx from 'classnames';
+
+import { DayPickerPhrases } from '../defaultPhrases';
+import getPhrasePropTypes from '../utils/getPhrasePropTypes';
 
 import OutsideClickHandler from './OutsideClickHandler';
 import CalendarMonthGrid from './CalendarMonthGrid';
@@ -10,9 +14,13 @@ import DayPickerNavigation from './DayPickerNavigation';
 
 import getTransformStyles from '../utils/getTransformStyles';
 
-import OrientationShape from '../shapes/OrientationShape';
+import ScrollableOrientationShape from '../shapes/ScrollableOrientationShape';
 
-import { HORIZONTAL_ORIENTATION, VERTICAL_ORIENTATION } from '../../constants';
+import {
+  HORIZONTAL_ORIENTATION,
+  VERTICAL_ORIENTATION,
+  VERTICAL_SCROLLABLE,
+} from '../../constants';
 
 const CALENDAR_MONTH_WIDTH = 300;
 const DAY_PICKER_PADDING = 9;
@@ -20,62 +28,119 @@ const MONTH_PADDING = 23;
 const PREV_TRANSITION = 'prev';
 const NEXT_TRANSITION = 'next';
 
-const propTypes = {
+const propTypes = forbidExtraProps({
+  // calendar presentation props
   enableOutsideDays: PropTypes.bool,
   numberOfMonths: PropTypes.number,
-  modifiers: PropTypes.object,
-  orientation: OrientationShape,
+  orientation: ScrollableOrientationShape,
   withPortal: PropTypes.bool,
+  onOutsideClick: PropTypes.func,
   hidden: PropTypes.bool,
   initialVisibleMonth: PropTypes.func,
+  renderCalendarInfo: PropTypes.func,
 
+  // navigation props
   navPrev: PropTypes.node,
   navNext: PropTypes.node,
-
-  onDayClick: PropTypes.func,
-  onDayMouseDown: PropTypes.func,
-  onDayMouseUp: PropTypes.func,
-  onDayMouseEnter: PropTypes.func,
-  onDayMouseLeave: PropTypes.func,
-  onDayTouchStart: PropTypes.func,
-  onDayTouchEnd: PropTypes.func,
-  onDayTouchTap: PropTypes.func,
   onPrevMonthClick: PropTypes.func,
   onNextMonthClick: PropTypes.func,
-  onOutsideClick: PropTypes.func,
 
-  // i18n
+  // day props
+  modifiers: PropTypes.object,
+  renderDay: PropTypes.func,
+  onDayClick: PropTypes.func,
+  onDayMouseEnter: PropTypes.func,
+  onDayMouseLeave: PropTypes.func,
+
+  // internationalization
   monthFormat: PropTypes.string,
-};
+  phrases: PropTypes.shape(getPhrasePropTypes(DayPickerPhrases)),
+});
 
 const defaultProps = {
+  // calendar presentation props
   enableOutsideDays: false,
-  numberOfMonths: 1,
-  modifiers: {},
+  numberOfMonths: 2,
   orientation: HORIZONTAL_ORIENTATION,
   withPortal: false,
+  onOutsideClick() {},
   hidden: false,
-
   initialVisibleMonth: () => moment(),
+  renderCalendarInfo: null,
 
+  // navigation props
   navPrev: null,
   navNext: null,
-
-  onDayClick() {},
-  onDayMouseDown() {},
-  onDayMouseUp() {},
-  onDayMouseEnter() {},
-  onDayMouseLeave() {},
-  onDayTouchStart() {},
-  onDayTouchTap() {},
-  onDayTouchEnd() {},
   onPrevMonthClick() {},
   onNextMonthClick() {},
-  onOutsideClick() {},
 
-  // i18n
+  // day props
+  modifiers: {},
+  renderDay: null,
+  onDayClick() {},
+  onDayMouseEnter() {},
+  onDayMouseLeave() {},
+
+  // internationalization
   monthFormat: 'MMMM YYYY',
+  phrases: DayPickerPhrases,
 };
+
+function applyTransformStyles(el, transform, opacity = '') {
+  const transformStyles = getTransformStyles(transform);
+  transformStyles.opacity = opacity;
+
+  Object.keys(transformStyles).forEach((styleKey) => {
+    // eslint-disable-next-line no-param-reassign
+    el.style[styleKey] = transformStyles[styleKey];
+  });
+}
+
+export function calculateDimension(el, axis, borderBox = false, withMargin = false) {
+  if (!el) {
+    return 0;
+  }
+
+  const axisStart = (axis === 'width') ? 'Left' : 'Top';
+  const axisEnd = (axis === 'width') ? 'Right' : 'Bottom';
+
+  // Only read styles if we need to
+  const style = (!borderBox || withMargin) ? window.getComputedStyle(el) : {};
+
+  // Offset includes border and padding
+  let size = (axis === 'width') ? el.offsetWidth : el.offsetHeight;
+
+  // Get the inner size
+  if (!borderBox) {
+    size -= (
+      parseFloat(style[`padding${axisStart}`]) +
+      parseFloat(style[`padding${axisEnd}`]) +
+      parseFloat(style[`border${axisStart}Width`]) +
+      parseFloat(style[`border${axisEnd}Width`])
+    );
+  }
+
+  // Apply margin
+  if (withMargin) {
+    size += (
+      parseFloat(style[`margin${axisStart}`]) +
+      parseFloat(style[`margin${axisEnd}`])
+    );
+  }
+
+  return size;
+}
+
+function getMonthHeight(el) {
+  const caption = el.querySelector('.js-CalendarMonth__caption');
+  const grid = el.querySelector('.js-CalendarMonth__grid');
+
+  // Need to separate out table children for FF
+  // Add an additional +1 for the border
+  return (
+    calculateDimension(caption, 'height', true, true) + calculateDimension(grid, 'height') + 1
+  );
+}
 
 export default class DayPicker extends React.Component {
   constructor(props) {
@@ -86,10 +151,12 @@ export default class DayPicker extends React.Component {
       currentMonth: props.hidden ? moment() : props.initialVisibleMonth(),
       monthTransition: null,
       translationValue: 0,
+      scrollableMonthMultiple: 1,
     };
 
     this.onPrevMonthClick = this.onPrevMonthClick.bind(this);
     this.onNextMonthClick = this.onNextMonthClick.bind(this);
+    this.multiplyScrollableMonths = this.multiplyScrollableMonths.bind(this);
     this.updateStateAfterMonthTransition = this.updateStateAfterMonthTransition.bind(this);
   }
 
@@ -168,66 +235,15 @@ export default class DayPicker extends React.Component {
   }
 
   getMonthHeightByIndex(i) {
-    return this.getMonthHeight(
-      ReactDOM.findDOMNode(this.refs.transitionContainer).querySelectorAll('.CalendarMonth')[i]
-    );
+    return getMonthHeight(this.transitionContainer.querySelectorAll('.CalendarMonth')[i]);
   }
 
-  getMonthHeight(el) {
-    const caption = el.querySelector('.js-CalendarMonth__caption');
-    const grid = el.querySelector('.js-CalendarMonth__grid');
+  multiplyScrollableMonths(e) {
+    if (e) e.preventDefault();
 
-    // Need to separate out table children for FF
-    // Add an additional +1 for the border
-    return (
-      this.calculateDimension(caption, 'height', true, true) +
-      this.calculateDimension(grid, 'height') + 1
-    );
-  }
-
-  applyTransformStyles(el, transform, opacity = '') {
-    const transformStyles = getTransformStyles(transform);
-    transformStyles.opacity = opacity;
-
-    Object.keys(transformStyles).forEach((styleKey) => {
-      // eslint-disable-next-line no-param-reassign
-      el.style[styleKey] = transformStyles[styleKey];
+    this.setState({
+      scrollableMonthMultiple: this.state.scrollableMonthMultiple + 1,
     });
-  }
-
-  calculateDimension(el, axis, borderBox = false, withMargin = false) {
-    if (!el) {
-      return 0;
-    }
-
-    const axisStart = (axis === 'width') ? 'Left' : 'Top';
-    const axisEnd = (axis === 'width') ? 'Right' : 'Bottom';
-
-    // Only read styles if we need to
-    const style = (!borderBox || withMargin) ? window.getComputedStyle(el) : {};
-
-    // Offset includes border and padding
-    let size = (axis === 'width') ? el.offsetWidth : el.offsetHeight;
-
-    // Get the inner size
-    if (!borderBox) {
-      size -= (
-        parseFloat(style[`padding${axisStart}`]) +
-        parseFloat(style[`padding${axisEnd}`]) +
-        parseFloat(style[`border${axisStart}Width`]) +
-        parseFloat(style[`border${axisEnd}Width`])
-      );
-    }
-
-    // Apply margin
-    if (withMargin) {
-      size += (
-        parseFloat(style[`margin${axisStart}`]) +
-        parseFloat(style[`margin${axisEnd}`])
-      );
-    }
-
-    return size;
   }
 
   isHorizontal() {
@@ -235,14 +251,16 @@ export default class DayPicker extends React.Component {
   }
 
   isVertical() {
-    return this.props.orientation === VERTICAL_ORIENTATION;
+    return this.props.orientation === VERTICAL_ORIENTATION ||
+      this.props.orientation === VERTICAL_SCROLLABLE;
   }
 
   initializeDayPickerWidth() {
-    this.dayPickerWidth = this.calculateDimension(
-      ReactDOM.findDOMNode(this.refs.calendarMonthGrid).querySelector('.CalendarMonth'),
+    this.dayPickerWidth = calculateDimension(
+      // eslint-disable-next-line react/no-find-dom-node
+      ReactDOM.findDOMNode(this.calendarMonthGrid).querySelector('.CalendarMonth'),
       'width',
-      true
+      true,
     );
   }
 
@@ -257,9 +275,10 @@ export default class DayPicker extends React.Component {
     }
 
     // clear the previous transforms
-    this.applyTransformStyles(
-      ReactDOM.findDOMNode(this.refs.calendarMonthGrid).querySelector('.CalendarMonth'),
-      'none'
+    applyTransformStyles(
+      // eslint-disable-next-line react/no-find-dom-node
+      ReactDOM.findDOMNode(this.calendarMonthGrid).querySelector('.CalendarMonth'),
+      'none',
     );
 
     this.setState({
@@ -270,21 +289,21 @@ export default class DayPicker extends React.Component {
   }
 
   adjustDayPickerHeight() {
-    const transitionContainer = ReactDOM.findDOMNode(this.refs.transitionContainer);
     const heights = [];
 
-    // convert node list to array
-    [...transitionContainer.querySelectorAll('.CalendarMonth')].forEach((el) => {
-      if (el.getAttribute('data-visible') === 'true') {
-        heights.push(this.getMonthHeight(el));
-      }
-    });
+    Array.prototype.forEach.call(this.transitionContainer.querySelectorAll('.CalendarMonth'),
+      (el) => {
+        if (el.getAttribute('data-visible') === 'true') {
+          heights.push(getMonthHeight(el));
+        }
+      },
+    );
 
     const newMonthHeight = Math.max(...heights) + MONTH_PADDING;
 
-    if (newMonthHeight !== this.calculateDimension(transitionContainer, 'height')) {
+    if (newMonthHeight !== calculateDimension(this.transitionContainer, 'height')) {
       this.monthHeight = newMonthHeight;
-      transitionContainer.style.height = `${newMonthHeight}px`;
+      this.transitionContainer.style.height = `${newMonthHeight}px`;
     }
   }
 
@@ -292,10 +311,10 @@ export default class DayPicker extends React.Component {
     const transformType = this.isVertical() ? 'translateY' : 'translateX';
     const transformValue = `${transformType}(-${translationValue}px)`;
 
-    this.applyTransformStyles(
-      ReactDOM.findDOMNode(this.refs.transitionContainer).querySelector('.CalendarMonth'),
+    applyTransformStyles(
+      this.transitionContainer.querySelector('.CalendarMonth'),
       transformValue,
-      1
+      1,
     );
   }
 
@@ -303,15 +322,23 @@ export default class DayPicker extends React.Component {
     const {
       navPrev,
       navNext,
+      orientation,
     } = this.props;
+
+    let onNextMonthClick;
+    if (orientation === VERTICAL_SCROLLABLE) {
+      onNextMonthClick = this.multiplyScrollableMonths;
+    } else {
+      onNextMonthClick = this.onNextMonthClick;
+    }
 
     return (
       <DayPickerNavigation
         onPrevMonthClick={this.onPrevMonthClick}
-        onNextMonthClick={this.onNextMonthClick}
+        onNextMonthClick={onNextMonthClick}
         navPrev={navPrev}
         navNext={navNext}
-        isVertical={this.isVertical()}
+        orientation={orientation}
       />
     );
   }
@@ -324,11 +351,11 @@ export default class DayPicker extends React.Component {
     const style = this.isHorizontal() ? horizontalStyle : {};
 
     const header = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 7; i += 1) {
       header.push(
         <li key={i}>
           <small>{moment().weekday(i).format('dd')}</small>
-        </li>
+        </li>,
       );
     }
 
@@ -346,7 +373,12 @@ export default class DayPicker extends React.Component {
   }
 
   render() {
-    const { currentMonth, monthTransition, translationValue } = this.state;
+    const {
+      currentMonth,
+      monthTransition,
+      translationValue,
+      scrollableMonthMultiple,
+    } = this.state;
     const {
       enableOutsideDays,
       numberOfMonths,
@@ -354,20 +386,17 @@ export default class DayPicker extends React.Component {
       modifiers,
       withPortal,
       onDayClick,
-      onDayMouseDown,
-      onDayMouseUp,
-      onDayTouchStart,
-      onDayTouchEnd,
-      onDayTouchTap,
       onDayMouseEnter,
       onDayMouseLeave,
+      renderDay,
+      renderCalendarInfo,
       onOutsideClick,
       monthFormat,
     } = this.props;
 
     const numOfWeekHeaders = this.isVertical() ? 1 : numberOfMonths;
     const weekHeaders = [];
-    for (let i = 0; i < numOfWeekHeaders; i++) {
+    for (let i = 0; i < numOfWeekHeaders; i += 1) {
       weekHeaders.push(this.renderWeekHeader(i));
     }
 
@@ -378,9 +407,12 @@ export default class DayPicker extends React.Component {
       firstVisibleMonthIndex += 1;
     }
 
+    const verticalScrollable = this.props.orientation === VERTICAL_SCROLLABLE;
+
     const dayPickerClassNames = cx('DayPicker', {
       'DayPicker--horizontal': this.isHorizontal(),
       'DayPicker--vertical': this.isVertical(),
+      'DayPicker--vertical-scrollable': verticalScrollable,
       'DayPicker--portal': withPortal,
     });
 
@@ -405,7 +437,7 @@ export default class DayPicker extends React.Component {
 
     const transitionContainerStyle = {
       width: this.isHorizontal() && horizontalWidth,
-      height: this.isVertical() && !withPortal && verticalHeight,
+      height: this.isVertical() && !verticalScrollable && !withPortal && verticalHeight,
     };
 
     const isCalendarMonthGridAnimating = monthTransition !== null;
@@ -415,7 +447,7 @@ export default class DayPicker extends React.Component {
     return (
       <div className={dayPickerClassNames} style={dayPickerStyle} >
         <OutsideClickHandler onOutsideClick={onOutsideClick}>
-          {this.renderNavigation()}
+          {!verticalScrollable && this.renderNavigation()}
 
           <div className="DayPicker__week-headers">
             {weekHeaders}
@@ -423,11 +455,11 @@ export default class DayPicker extends React.Component {
 
           <div
             className={transitionContainerClasses}
-            ref="transitionContainer"
+            ref={(ref) => { this.transitionContainer = ref; }}
             style={transitionContainerStyle}
           >
             <CalendarMonthGrid
-              ref="calendarMonthGrid"
+              ref={(ref) => { this.calendarMonthGrid = ref; }}
               transformValue={transformValue}
               enableOutsideDays={enableOutsideDays}
               firstVisibleMonthIndex={firstVisibleMonthIndex}
@@ -435,20 +467,17 @@ export default class DayPicker extends React.Component {
               isAnimating={isCalendarMonthGridAnimating}
               modifiers={modifiers}
               orientation={orientation}
-              withPortal={withPortal}
-              numberOfMonths={numberOfMonths}
+              numberOfMonths={numberOfMonths * scrollableMonthMultiple}
               onDayClick={onDayClick}
-              onDayMouseDown={onDayMouseDown}
-              onDayMouseUp={onDayMouseUp}
-              onDayTouchStart={onDayTouchStart}
-              onDayTouchEnd={onDayTouchEnd}
-              onDayTouchTap={onDayTouchTap}
               onDayMouseEnter={onDayMouseEnter}
               onDayMouseLeave={onDayMouseLeave}
+              renderDay={renderDay}
               onMonthTransitionEnd={this.updateStateAfterMonthTransition}
               monthFormat={monthFormat}
             />
+            {verticalScrollable && this.renderNavigation()}
           </div>
+          {renderCalendarInfo && renderCalendarInfo()}
         </OutsideClickHandler>
       </div>
     );

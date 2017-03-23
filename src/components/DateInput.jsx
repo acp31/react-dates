@@ -1,12 +1,15 @@
 import React, { PropTypes } from 'react';
+import { forbidExtraProps } from 'airbnb-prop-types';
 import cx from 'classnames';
 
 import isTouchDevice from '../utils/isTouchDevice';
 
-const propTypes = {
+const propTypes = forbidExtraProps({
   id: PropTypes.string.isRequired,
   placeholder: PropTypes.string, // also used as label
-  dateValue: PropTypes.string,
+  displayValue: PropTypes.string,
+  inputValue: PropTypes.string,
+  screenReaderMessage: PropTypes.string,
   focused: PropTypes.bool,
   disabled: PropTypes.bool,
   required: PropTypes.bool,
@@ -16,11 +19,13 @@ const propTypes = {
   onFocus: PropTypes.func,
   onKeyDownShiftTab: PropTypes.func,
   onKeyDownTab: PropTypes.func,
-};
+});
 
 const defaultProps = {
   placeholder: 'Select Date',
-  dateValue: '',
+  displayValue: '',
+  inputValue: '',
+  screenReaderMessage: '',
   focused: false,
   disabled: false,
   required: false,
@@ -37,16 +42,19 @@ export default class DateInput extends React.Component {
     super(props);
     this.state = {
       dateString: '',
+      isTouchDevice: false,
     };
 
     this.onChange = this.onChange.bind(this);
     this.onKeyDown = this.onKeyDown.bind(this);
+  }
 
-    this.isTouchDevice = isTouchDevice();
+  componentDidMount() {
+    this.setState({ isTouchDevice: isTouchDevice() });
   }
 
   componentWillReceiveProps(nextProps) {
-    if (!this.props.dateValue && nextProps.dateValue) {
+    if (!this.props.displayValue && nextProps.displayValue) {
       this.setState({
         dateString: '',
       });
@@ -84,11 +92,16 @@ export default class DateInput extends React.Component {
   }
 
   render() {
-    const { dateString } = this.state;
+    const {
+      dateString,
+      isTouchDevice: isTouch,
+    } = this.state;
     const {
       id,
       placeholder,
-      dateValue,
+      displayValue,
+      inputValue,
+      screenReaderMessage,
       focused,
       showCaret,
       onFocus,
@@ -96,7 +109,9 @@ export default class DateInput extends React.Component {
       required,
     } = this.props;
 
-    const value = dateValue || dateString;
+    const displayText = displayValue || inputValue || dateString || placeholder || '';
+    const value = inputValue || displayValue || dateString || '';
+    const screenReaderMessageId = `DateInput__screen-reader-message-${id}`;
 
     return (
       <div
@@ -104,14 +119,10 @@ export default class DateInput extends React.Component {
           'DateInput--with-caret': showCaret && focused,
           'DateInput--disabled': disabled,
         })}
-        onClick={onFocus}
       >
-        <label className="DateInput__label" htmlFor={id}>
-          {placeholder}
-        </label>
-
         <input
-          className="DateInput__input"
+          aria-label={placeholder}
+          className="DateInput__input needsclick"
           type="text"
           id={id}
           name={id}
@@ -123,9 +134,16 @@ export default class DateInput extends React.Component {
           placeholder={placeholder}
           autoComplete="off"
           disabled={disabled}
-          readOnly={this.isTouchDevice}
+          readOnly={isTouch}
           required={required}
+          aria-describedby={screenReaderMessage && screenReaderMessageId}
         />
+
+        {screenReaderMessage &&
+          <p id={screenReaderMessageId} className="screen-reader-only">
+            {screenReaderMessage}
+          </p>
+        }
 
         <div
           className={cx('DateInput__display-text', {
@@ -134,7 +152,7 @@ export default class DateInput extends React.Component {
             'DateInput__display-text--disabled': disabled,
           })}
         >
-          {value || placeholder}
+          {displayText}
         </div>
       </div>
     );
